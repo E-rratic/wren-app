@@ -1,0 +1,13 @@
+{
+  "name": "Wren — Private Cycle Tracker",
+  "short_name": "Wren",
+  "description": "A free, open-source, privacy-first period tracker. Your data never leaves your device.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FAF3E8",
+  "theme_color": "#7A2E45",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
