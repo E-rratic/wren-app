@@ -15,7 +15,8 @@ let sessionKey = null;   // CryptoKey while unlocked, only in memory
 let calendarCursor = new Date(); calendarCursor.setDate(1);
 let activeLogDate = null;
 let activeLogRange = null; // {start, end} when logging a dragged range instead of one day
-let logSelection = { flow: 'none', mood: null, symptoms: new Set() };
+let logSelection = { flow: 'none', mood: null, symptoms: new Set(), extra: {} };
+const EXTRA_KEYS = ['sex','discharge','ovTest','pregTest'];
 let rangeSelectMode = false;
 let isDragSelecting = false;
 let dragStartISO = null;
@@ -229,6 +230,7 @@ function renderAll() {
 }
 
 function renderHome() {
+  renderPregCard();
   const cyc = cycleStats();
   const today = new Date(); today.setHours(0,0,0,0);
   const { label, dayInCycle } = phaseLabel(today, cyc);
@@ -251,6 +253,16 @@ function renderHome() {
   const ring = $('#ringProgress');
   ring.style.strokeDashoffset = String(circumference * (1 - frac));
   ring.style.stroke = label === 'Menstrual phase' ? 'var(--berry)' : (label === 'Fertile window' ? 'var(--sage)' : 'var(--mauve)');
+
+  const p = pregInfo();
+  $$('#view-home .stat-card').forEach(c => c.classList.toggle('hidden', !!p));
+  if (p) {
+    $('#ringPhaseLabel').textContent = `Week ${p.week}`;
+    $('#ringDayLabel').textContent = `Trimester ${p.tri}`;
+    $('#ringSubLabel').textContent = `${Math.max(p.daysLeft,0)} days to go`;
+    ring.style.strokeDashoffset = String(circumference * (1 - clamp(p.d/280,0,1)));
+    ring.style.stroke = 'var(--sage)';
+  }
 
   const strip = $('#weekStrip');
   strip.innerHTML = '';
@@ -401,8 +413,8 @@ function onGridPointerUp() {
 function openBulkLogModal(startISO, endISO) {
   activeLogRange = { start: startISO, end: endISO };
   activeLogDate = null;
-  logSelection = { flow: 'medium', mood: null, symptoms: new Set() };
-  $('#logNotes').value = '';
+  logSelection = { flow: 'medium', mood: null, symptoms: new Set(), extra: {} };
+  $('#logNotes').value = ''; $('#logTemp').value = ''; syncExtraChips();
 
   const nDays = daysBetween(fromISO(startISO), fromISO(endISO)) + 1;
   const startFmt = fromISO(startISO).toLocaleDateString(undefined, { month:'short', day:'numeric' });
@@ -423,8 +435,8 @@ function openLogModal(iso) {
   activeLogRange = null;
   $('#logModalRangeHint').classList.add('hidden');
   const existing = state.logs[iso] || { flow: 'none', mood: null, symptoms: [], notes: '' };
-  logSelection = { flow: existing.flow || 'none', mood: existing.mood || null, symptoms: new Set(existing.symptoms || []) };
-  $('#logNotes').value = existing.notes || '';
+  logSelection = { flow: existing.flow || 'none', mood: existing.mood || null, symptoms: new Set(existing.symptoms || []), extra: Object.fromEntries(EXTRA_KEYS.filter(k=>existing[k]).map(k=>[k,existing[k]])) };
+  $('#logNotes').value = existing.notes || ''; $('#logTemp').value = existing.temp || ''; syncExtraChips();
 
   const d = fromISO(iso);
   const today = new Date(); today.setHours(0,0,0,0);
@@ -447,8 +459,9 @@ function closeLogModal() {
 
 async function saveLog() {
   const notes = $('#logNotes').value.trim();
-  const entry = { flow: logSelection.flow, mood: logSelection.mood, symptoms: Array.from(logSelection.symptoms), notes };
-  const isEmpty = entry.flow === 'none' && !entry.mood && entry.symptoms.length === 0 && !entry.notes;
+  const entry = { flow: logSelection.flow, mood: logSelection.mood, symptoms: Array.from(logSelection.symptoms), notes, ...logSelection.extra };
+  const temp = parseFloat($('#logTemp').value); if (temp >= 34 && temp <= 40) entry.temp = temp;
+  const isEmpty = entry.flow === 'none' && !entry.mood && entry.symptoms.length === 0 && !entry.notes && !EXTRA_KEYS.some(k=>entry[k]) && !entry.temp;
 
   if (activeLogRange) {
     let d = fromISO(activeLogRange.start);
@@ -468,6 +481,36 @@ async function saveLog() {
   closeLogModal();
   renderAll();
   toast('Saved');
+}
+
+/* ---------------- sexual health / body chips ---------------- */
+function syncExtraChips() {
+  $$('#logModal .chip[data-pick]').forEach(c => c.classList.toggle('selected', logSelection.extra[c.dataset.pick] === c.dataset.val));
+}
+function pickExtra(c) {
+  const k = c.dataset.pick, v = c.dataset.val;
+  if (logSelection.extra[k] === v) delete logSelection.extra[k]; else logSelection.extra[k] = v;
+  syncExtraChips();
+}
+
+/* ---------------- pregnancy mode ---------------- */
+const SIZES = [[4,'a poppy seed'],[8,'a raspberry'],[12,'a lime'],[16,'an avocado'],[20,'a banana'],[24,'an ear of corn'],[28,'an eggplant'],[32,'a squash'],[36,'a head of romaine'],[40,'a small watermelon']];
+function pregInfo() {
+  if (!state.pregnancy) return null;
+  const lmp = fromISO(state.pregnancy.lmp), today = new Date(); today.setHours(0,0,0,0);
+  const d = daysBetween(lmp, today), week = Math.floor(d/7) + 1;
+  const size = SIZES.filter(s => week >= s[0]).pop();
+  return { d, week, daysLeft: 280 - d, tri: week <= 13 ? 1 : week <= 27 ? 2 : 3, due: addDays(lmp, 280), size: size ? size[1] : 'tiny' };
+}
+function renderPregCard() {
+  const el = $('#pregCard'), p = pregInfo();
+  if (!p) {
+    el.innerHTML = '<b>Pregnancy mode</b><p class="muted small">Track your pregnancy week by week. Stays on this device.</p><input type="date" id="pregLmp"><button id="pregStart" class="btn-secondary" style="margin-top:8px">Start</button><p class="muted small">Date of your last period start</p>';
+    $('#pregStart').onclick = async () => { const v = $('#pregLmp').value; if (!v) return toast('Pick a date'); state.pregnancy = { lmp: v }; await saveState(); renderAll(); };
+    return;
+  }
+  el.innerHTML = `<b>Week ${p.week} · Trimester ${p.tri}</b><p class="small">Baby is about the size of ${p.size}.</p><p class="muted small">Due ${p.due.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'})} (${Math.max(p.daysLeft,0)} days to go). Estimate only; follow your doctor or midwife's guidance.</p><button id="pregEnd" class="btn-secondary">End pregnancy mode</button>`;
+  $('#pregEnd').onclick = async () => { if (!confirm('Switch back to cycle tracking?')) return; state.pregnancy = null; await saveState(); renderAll(); };
 }
 
 /* ---------------- navigation ---------------- */
@@ -617,6 +660,7 @@ function wireEvents() {
     logSelection.mood = logSelection.mood === c.dataset.mood ? null : c.dataset.mood;
     $$('#moodChips .chip').forEach(x => x.classList.toggle('selected', x.dataset.mood===logSelection.mood));
   });
+  $('#logModal').addEventListener('click', e => { const c = e.target.closest('.chip[data-pick]'); if (c) pickExtra(c); });
   $('#symptomChips').addEventListener('click', e => {
     const c = e.target.closest('.chip'); if (!c) return;
     const s = c.dataset.symptom;

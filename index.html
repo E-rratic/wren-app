@@ -86,6 +86,8 @@
 
       <div class="section-label">This week</div>
       <div id="weekStrip" class="week-strip"></div>
+      <div id="pregCard" class="settings-card" style="margin-top:18px"></div>
+
     </section>
 
     <!-- CALENDAR -->
@@ -277,6 +279,11 @@
       <textarea id="logNotes" rows="3" placeholder="Anything you want to remember about today"></textarea>
     </div>
 
+<div class="field"><label>Sex</label><div class="chip-row"><button class="chip" data-pick="sex" data-val="protected">Protected</button><button class="chip" data-pick="sex" data-val="unprotected">Unprotected</button><button class="chip" data-pick="sex" data-val="none">None</button></div></div>
+<div class="field"><label>Discharge</label><div class="chip-row"><button class="chip" data-pick="discharge" data-val="dry">Dry</button><button class="chip" data-pick="discharge" data-val="sticky">Sticky</button><button class="chip" data-pick="discharge" data-val="creamy">Creamy</button><button class="chip" data-pick="discharge" data-val="eggwhite">Egg-white</button><button class="chip" data-pick="discharge" data-val="watery">Watery</button></div></div>
+<div class="field"><label>Ovulation test</label><div class="chip-row"><button class="chip" data-pick="ovTest" data-val="negative">Negative</button><button class="chip" data-pick="ovTest" data-val="positive">Positive</button></div></div>
+<div class="field"><label>Pregnancy test</label><div class="chip-row"><button class="chip" data-pick="pregTest" data-val="negative">Negative</button><button class="chip" data-pick="pregTest" data-val="positive">Positive</button></div></div>
+<div class="field"><label for="logTemp">Basal body temp (°C)</label><input type="number" id="logTemp" step="0.01" min="34" max="40" placeholder="e.g. 36.55"></div>
     <button id="logSave" class="btn-primary">Save</button>
   </div>
 </div>
