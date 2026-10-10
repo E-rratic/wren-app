@@ -3,7 +3,7 @@
 // this string is what forces the browser to notice sw.js changed, install a
 // fresh service worker, and throw away old cached files — otherwise phones
 // keep serving stale, possibly mismatched copies of your files indefinitely.
-const CACHE = 'wren-v5';
+const CACHE = 'wren-v6';
 const ASSETS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
